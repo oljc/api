@@ -1,12 +1,12 @@
 {
-	"name": "edgeone-hono-api",
+	"name": "api-server",
 	"version": "0.1.0",
 	"private": true,
 	"type": "module",
 	"packageManager": "pnpm@9.15.0",
 	"scripts": {
 		"dev": "edgeone makers dev --port 8088 --skip-env-sync --skip-ai-gateway-sync",
-		"build": "edgeone makers build",
+		"build": "tsc --noEmit",
 		"deploy": "edgeone makers deploy",
 		"typecheck": "tsc --noEmit",
 		"check": "biome check",
