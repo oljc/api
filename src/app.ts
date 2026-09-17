@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { logger } from "hono/logger";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { AppError } from "@/lib/errors";
 import { fail } from "@/lib/response";
@@ -12,13 +11,13 @@ export function createApp() {
 	const app = new Hono<AppEnv>();
 
 	app.use("*", traceMiddleware);
-	app.use("*", logger());
 	app.use(
 		"*",
 		cors({
 			origin: "*",
 			allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-			allowHeaders: ["Content-Type", "Authorization", "X-Trace-Id"],
+			allowHeaders: ["Content-Type", "Authorization"],
+			exposeHeaders: ["X-Trace-Id"],
 		}),
 	);
 

@@ -1,26 +1,10 @@
 import { createApp } from "@/app";
-import type { Env } from "@/types/api";
-
-const app = createApp();
-
-export type EdgeOneContext = {
-	request: Request;
-	params: Record<string, string>;
-	env: Env;
-	uuid?: string;
-};
 
 /**
- * EdgeOne Cloud Functions 入口。
- * 通过 onRequest + app.fetch 接入，不要调用 app.listen()。
+ * EdgeOne Cloud Functions 入口（Hono 框架模式）。
+ * 与 Express/Koa 一致：仅 export default app，禁止 app.listen()。
+ * 平台会直接调用 app.fetch(request, env)；trace 用请求头 eo-log-uuid。
  */
-export async function onRequest(context: EdgeOneContext): Promise<Response> {
-	const headers = new Headers(context.request.headers);
-	if (context.uuid && !headers.has("x-trace-id")) {
-		headers.set("x-trace-id", context.uuid);
-	}
-
-	return app.fetch(new Request(context.request, { headers }), context.env);
-}
+const app = createApp();
 
 export default app;

@@ -27,11 +27,14 @@ importers:
       '@commitlint/config-conventional':
         specifier: ^21.2.2
         version: 21.2.2
+      '@edgeone/types':
+        specifier: ^1.0.1
+        version: 1.0.1
       '@types/node':
         specifier: ^22.20.3
         version: 22.20.3
       edgeone:
-        specifier: ^1.6.29
+        specifier: ^1.6.40
         version: 1.6.40
       lefthook:
         specifier: ^2.1.14
@@ -247,6 +250,9 @@ packages:
   '@edgeone/pages-blob@0.0.16':
     resolution: {integrity: sha512-Qk3SHTSvCF7awlKsG5t45FolHd8kVH44yJKeXM21qNq8A1I1mTGUuQWa+j4shwuBdgQTvRHTFBbQxAvKqiR22A==}
     engines: {node: '>=18.0.0'}
+
+  '@edgeone/types@1.0.1':
+    resolution: {integrity: sha512-oC5T18J00sewy49m8s2X7DxyqB2pHKYvwIvZhQ1rY5s0kI6Q9jvsUMSlb0wMrlXVEeBqt1oGbA6b7gGpKcI3oQ==}
 
   '@esbuild/aix-ppc64@0.19.12':
     resolution: {integrity: sha512-bmoCYyWdEL3wDQIVbcyzRyeKLgk2WtWLTWz1ZIAZF/EGbNOwSA6ew3PftJ1PqMiOOGu0OyFMzG53L0zqIpPeNA==}
@@ -748,8 +754,8 @@ packages:
     resolution: {integrity: sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A==}
     engines: {node: '>= 0.4'}
 
-  e2b@2.49.1:
-    resolution: {integrity: sha512-alHohyLEls8Mb2lO++k3UXlOfGbg+Py1UEaxBqK8YJzWKOtXYtCXVPnHmgYiWg5u3MYuejCJxb+aObTYXlET1A==}
+  e2b@2.50.0:
+    resolution: {integrity: sha512-XADlFhXGMvvWGPnyBiah6EFwNFBg1XIvdLInKhjMq/tuhlpN46Btj9BpuxwjvGenVJNZgimzn6Xj0XwttrMKjQ==}
     engines: {node: '>=20.18.1 <21 || >=22'}
 
   edgeone@1.6.40:
@@ -1268,8 +1274,8 @@ packages:
     resolution: {integrity: sha512-RYONW2MeafgYlkVOKYKkA/Ag7BmXqgIWCa8t1m0JcxrQg9pI9lEqRhAOruOBCbAohOa/gkCF+iPi9hrgvTzu6Q==}
     engines: {node: '>=20.18.1'}
 
-  undici@8.10.1:
-    resolution: {integrity: sha512-YQ3WlbqjYMmNpdvDH64jAgLjxuAR9+649calDWhbshYaeQGO2bR4nI94ORJmwI3J9YhoKQnpyGOK+0zlWS5N5Q==}
+  undici@8.10.2:
+    resolution: {integrity: sha512-/y4/bH9YNU5hi9NIrpOuvGXFcxrj3CMrV+/AYpowAYTpHn8gX/XPFjNy766FPoYY0miQhdW977JFWKGNhBdwyQ==}
     engines: {node: '>=22.19.0'}
 
   unplugin@2.3.11:
@@ -1314,6 +1320,9 @@ packages:
 
   yauzl@2.10.0:
     resolution: {integrity: sha512-p4a9I6X6nu6IhoGmBqAcbJy1mlC4j27vEPZX9F4L4/vZT3Lyq1VkFHw/V/PUcB9Buo+DG3iHkT0x3Qya58zc3g==}
+
+  zod@3.25.76:
+    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
   zod@4.6.5:
     resolution: {integrity: sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==}
@@ -1534,7 +1543,7 @@ snapshots:
 
   '@e2b/code-interpreter@2.8.0':
     dependencies:
-      e2b: 2.49.1
+      e2b: 2.50.0
 
   '@edgeone/nuxt-pages@1.1.2-beta.1':
     dependencies:
@@ -1554,6 +1563,10 @@ snapshots:
       - supports-color
 
   '@edgeone/pages-blob@0.0.16': {}
+
+  '@edgeone/types@1.0.1':
+    dependencies:
+      zod: 3.25.76
 
   '@esbuild/aix-ppc64@0.19.12':
     optional: true
@@ -1936,7 +1949,7 @@ snapshots:
       es-errors: 1.3.0
       gopd: 1.2.0
 
-  e2b@2.49.1:
+  e2b@2.50.0:
     dependencies:
       '@bufbuild/protobuf': 2.15.0
       '@connectrpc/connect': 2.2.0(@bufbuild/protobuf@2.15.0)
@@ -1950,7 +1963,7 @@ snapshots:
       tar: 7.5.22
       undici: 7.29.1
     optionalDependencies:
-      undici8: undici@8.10.1
+      undici8: undici@8.10.2
 
   edgeone@1.6.40:
     dependencies:
@@ -2478,7 +2491,7 @@ snapshots:
 
   undici@7.29.1: {}
 
-  undici@8.10.1:
+  undici@8.10.2:
     optional: true
 
   unplugin@2.3.11:
@@ -2529,5 +2542,7 @@ snapshots:
     dependencies:
       buffer-crc32: 0.2.13
       fd-slicer: 1.1.0
+
+  zod@3.25.76: {}
 
   zod@4.6.5: {}
