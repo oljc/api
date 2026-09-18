@@ -17,7 +17,6 @@ export function createApp() {
 			origin: "*",
 			allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 			allowHeaders: ["Content-Type", "Authorization"],
-			exposeHeaders: ["X-Trace-Id"],
 		}),
 	);
 

@@ -13,7 +13,7 @@
 	"json.format.enable": false,
 	"css.format.enable": false,
 	"biome.requireConfiguration": true,
-	"cSpell.words": ["edgeone"],
+	"cSpell.words": ["edgeone", "neondatabase"],
 	"#js/ts.preferences.importModuleSpecifier#": "non-relative",
 	"#js/ts.preferences.importModuleSpecifierEnding#": "minimal"
 }

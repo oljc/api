@@ -5,5 +5,4 @@ export const traceMiddleware = createMiddleware<AppEnv>(async (c, next) => {
 	const traceId = c.req.header("functions-request-id") || crypto.randomUUID();
 	c.set("traceId", traceId);
 	await next();
-	c.header("x-trace-id", traceId);
 });
