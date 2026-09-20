@@ -3,7 +3,7 @@
 	"version": "0.1.0",
 	"private": true,
 	"type": "module",
-	"packageManager": "pnpm@9.15.0",
+	"packageManager": "pnpm@12.5.1",
 	"scripts": {
 		"dev": "edgeone makers dev --port 8088 --skip-env-sync --skip-ai-gateway-sync",
 		"build": "tsc --noEmit",
@@ -11,12 +11,6 @@
 		"check": "biome check",
 		"check:fix": "biome check --write",
 		"prepare": "lefthook install"
-	},
-	"pnpm": {
-		"onlyBuiltDependencies": [
-			"lefthook",
-			"esbuild"
-		]
 	},
 	"dependencies": {
 		"@hono/zod-validator": "^0.9.1",
@@ -36,7 +30,8 @@
 		"typescript": "^7.0.2"
 	},
 	"engines": {
-		"node": ">=24"
+		"node": ">=24",
+		"pnpm": ">=12"
 	},
 	"commitlint": {
 		"extends": [

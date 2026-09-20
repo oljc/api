@@ -1,0 +1,4 @@
+shamefullyHoist: true
+allowBuilds:
+  lefthook: true
+  esbuild: true
