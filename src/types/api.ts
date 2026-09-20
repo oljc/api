@@ -12,11 +12,16 @@ export const API_CODE_OK = 0 as const;
 /** EdgeOne 注入的环境变量；运行时请用 c.env，不要用 process.env */
 export type Env = {
 	API_TOKEN?: string;
+	DATABASE_URL?: string;
 	[key: string]: string | undefined;
 };
 
 export type Variables = {
 	traceId: string;
+	accountId?: string;
+	sessionId?: string;
+	tenantId?: string | null;
+	userId?: string | null;
 };
 
 export type AppEnv = {
