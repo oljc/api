@@ -2,23 +2,28 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { AppError } from "@/lib/errors";
+import { parseOrigins } from "@/lib/origins";
 import { fail } from "@/lib/response";
+import { csrfOrigin } from "@/middleware/csrf";
 import { traceMiddleware } from "@/middleware/trace";
-import { registerRoutes } from "@/routes/index";
+import { registerRoutes } from "@/routes";
 import type { AppEnv } from "@/types/api";
 
-export function createApp() {
+export const createApp = () => {
 	const app = new Hono<AppEnv>();
 
 	app.use("*", traceMiddleware);
-	app.use(
-		"*",
-		cors({
-			origin: "*",
+	app.use("*", async (c, next) => {
+		const allowlist = parseOrigins(c.env.CORS_ORIGINS);
+		const handler = cors({
+			origin: (origin) => (allowlist.includes(origin) ? origin : undefined),
+			credentials: true,
 			allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-			allowHeaders: ["Content-Type", "Authorization"],
-		}),
-	);
+			allowHeaders: ["Content-Type"],
+		});
+		return handler(c, next);
+	});
+	app.use("*", csrfOrigin);
 
 	registerRoutes(app);
 
@@ -42,6 +47,6 @@ export function createApp() {
 	});
 
 	return app;
-}
+};
 
 export type App = ReturnType<typeof createApp>;

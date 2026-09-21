@@ -13,6 +13,7 @@ export const API_CODE_OK = 0 as const;
 export type Env = {
 	API_TOKEN?: string;
 	DATABASE_URL?: string;
+	CORS_ORIGINS?: string;
 	[key: string]: string | undefined;
 };
 

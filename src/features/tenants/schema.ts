@@ -12,7 +12,7 @@ export const createTenantSchema = z.object({
 });
 
 export const tenantIdParamSchema = z.object({
-	id: z.string().uuid(),
+	id: z.uuid(),
 });
 
 export type CreateTenantInput = z.infer<typeof createTenantSchema>;

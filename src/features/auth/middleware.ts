@@ -1,8 +1,9 @@
 import { createMiddleware } from "hono/factory";
 import { sql } from "@/db/client";
 import { AppError } from "@/lib/errors";
-import { hashToken } from "@/lib/session-token";
 import type { AppEnv } from "@/types/api";
+import { getAccessToken } from "./cookies";
+import { hashToken } from "./internal/session-token";
 
 type SessionRow = {
 	id: string;
@@ -11,9 +12,9 @@ type SessionRow = {
 	account_status: number;
 };
 
-async function loadSessionByAccessToken(
+const loadSessionByAccessToken = async (
 	accessToken: string,
-): Promise<SessionRow> {
+): Promise<SessionRow> => {
 	const tokenHash = hashToken(accessToken);
 	const rows = await sql`
 		SELECT
@@ -38,12 +39,12 @@ async function loadSessionByAccessToken(
 		throw new AppError(403, "账号不可用");
 	}
 	return session;
-}
+};
 
-async function resolveTenantUser(
+const resolveTenantUser = async (
 	accountId: string,
 	tenantId: string | null,
-): Promise<{ tenantId: string | null; userId: string | null }> {
+): Promise<{ tenantId: string | null; userId: string | null }> => {
 	if (!tenantId) {
 		return { tenantId: null, userId: null };
 	}
@@ -66,18 +67,11 @@ async function resolveTenantUser(
 		return { tenantId: null, userId: null };
 	}
 	return { tenantId, userId: row.user_id };
-}
+};
 
-function extractBearerToken(authorization: string | undefined): string | null {
-	if (!authorization) return null;
-	const [scheme, token] = authorization.split(" ");
-	if (scheme?.toLowerCase() !== "bearer" || !token) return null;
-	return token;
-}
-
-/** 要求有效 access token；注入 accountId / sessionId；尽力解析租户成员 */
+/** 要求有效 access cookie；注入 accountId / sessionId；尽力解析租户成员 */
 export const requireAuth = createMiddleware<AppEnv>(async (c, next) => {
-	const token = extractBearerToken(c.req.header("Authorization"));
+	const token = getAccessToken(c);
 	if (!token) {
 		throw new AppError(401, "未登录或会话已过期");
 	}

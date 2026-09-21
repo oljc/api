@@ -4,12 +4,12 @@ import { API_CODE_OK, type ApiResponse, type AppEnv } from "@/types/api";
 
 export type AppContext = Context<AppEnv>;
 
-export function ok<T>(
+export const ok = <T>(
 	c: AppContext,
 	data: T,
 	message = "成功",
 	status: ContentfulStatusCode = 200,
-) {
+) => {
 	const body: ApiResponse<T> = {
 		code: API_CODE_OK,
 		message,
@@ -17,15 +17,15 @@ export function ok<T>(
 		traceId: c.get("traceId"),
 	};
 	return c.json(body, status);
-}
+};
 
-export function fail<T = null>(
+export const fail = <T = null>(
 	c: AppContext,
 	code: number,
 	message: string,
 	data: T = null as T,
 	status?: ContentfulStatusCode,
-) {
+) => {
 	// 未显式传入 HTTP 状态码时：业务码落在 4xx/5xx 则复用，否则默认 400
 	const httpStatus: ContentfulStatusCode =
 		status ??
@@ -38,4 +38,4 @@ export function fail<T = null>(
 		traceId: c.get("traceId"),
 	};
 	return c.json(body, httpStatus);
-}
+};

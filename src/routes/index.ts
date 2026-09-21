@@ -1,12 +1,12 @@
 import type { Hono } from "hono";
 import { ok } from "@/lib/response";
-import { authRoutes } from "@/routes/auth";
-import { tenantsRoutes } from "@/routes/tenants";
 import type { AppEnv } from "@/types/api";
+import { authRoutes } from "./auth";
+import { tenantsRoutes } from "./tenants";
 
-export function registerRoutes(app: Hono<AppEnv>) {
+export const registerRoutes = (app: Hono<AppEnv>) => {
 	app.get("/", (c) => ok(c, new Date().toISOString(), "没挂"));
 
 	app.route("/auth", authRoutes);
 	app.route("/tenants", tenantsRoutes);
-}
+};

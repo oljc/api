@@ -112,7 +112,6 @@ const PNG_HEAD = Buffer.concat([
 	chunk("tRNS", Uint8Array.of(0)),
 ]);
 const PNG_IEND = chunk("IEND", new Uint8Array(0));
-const DATA_URL_HEAD = "data:image/png;base64,";
 
 /** 索引色 PNG；透明底 + level 9 → base64 更小 */
 const encodePng = (pix: Uint8Array) => {
@@ -222,7 +221,7 @@ const renderPngDataUrl = (code: string) => {
 		}
 	}
 
-	return DATA_URL_HEAD + encodePng(pix).toString("base64");
+	return `data:image/png;base64,${encodePng(pix).toString("base64")}`;
 };
 
 const sha256Hex = (data: string | Buffer) =>
@@ -268,15 +267,16 @@ export const createCaptcha = async () => {
  * 原子消费并校验答案。
  * 失败统一文案，不区分过期/错误/已用。
  */
-const UUID_RE =
-	/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
 export const consumeCaptcha = async (
 	captchaId: string,
 	captchaCode: string,
 ): Promise<void> => {
 	const id = captchaId.trim();
-	if (!UUID_RE.test(id)) {
+	if (
+		!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+			id,
+		)
+	) {
 		throw new AppError(400, "验证码错误或已过期");
 	}
 

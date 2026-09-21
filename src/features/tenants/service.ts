@@ -1,13 +1,13 @@
 import { sql } from "@/db/client";
-import { AppError } from "@/lib/errors";
-import type { CreateTenantInput } from "@/schemas/tenants";
 import {
 	listActiveTenants,
 	type PublicTenant,
 	type PublicUser,
 	toPublicTenant,
 	toPublicUser,
-} from "@/services/auth";
+} from "@/features/auth";
+import { AppError } from "@/lib/errors";
+import type { CreateTenantInput } from "./schema";
 
 type RoleTemplate = {
 	id: string;
@@ -21,7 +21,7 @@ type RolePermTemplate = {
 	permission_id: string;
 };
 
-function slugifyTenantKey(name: string): string {
+const slugifyTenantKey = (name: string): string => {
 	const base = name
 		.trim()
 		.toLowerCase()
@@ -30,9 +30,9 @@ function slugifyTenantKey(name: string): string {
 		.slice(0, 48);
 	if (base.length >= 2) return base;
 	return `org-${crypto.randomUUID().slice(0, 8)}`;
-}
+};
 
-async function ensureUniqueTenantKey(preferred: string): Promise<string> {
+const ensureUniqueTenantKey = async (preferred: string): Promise<string> => {
 	let candidate = preferred;
 	for (let i = 0; i < 8; i++) {
 		const rows = await sql`
@@ -44,11 +44,13 @@ async function ensureUniqueTenantKey(preferred: string): Promise<string> {
 		candidate = `${preferred.slice(0, 40)}-${crypto.randomUUID().slice(0, 6)}`;
 	}
 	return `org-${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
-}
+};
 
-export async function listTenants(accountId: string): Promise<{
+export const listTenants = async (
+	accountId: string,
+): Promise<{
 	items: Array<PublicTenant & { user: PublicUser }>;
-}> {
+}> => {
 	const rows = await listActiveTenants(accountId);
 	return {
 		items: rows.map((row) => ({
@@ -56,16 +58,16 @@ export async function listTenants(accountId: string): Promise<{
 			user: toPublicUser(row),
 		})),
 	};
-}
+};
 
-export async function createTenant(
+export const createTenant = async (
 	accountId: string,
 	sessionId: string,
 	input: CreateTenantInput,
 ): Promise<{
 	tenant: PublicTenant;
 	user: PublicUser;
-}> {
+}> => {
 	const tenantKey = await ensureUniqueTenantKey(
 		input.tenantKey ?? slugifyTenantKey(input.name),
 	);
@@ -193,16 +195,16 @@ export async function createTenant(
 			status: 1,
 		},
 	};
-}
+};
 
-export async function switchTenant(
+export const switchTenant = async (
 	accountId: string,
 	sessionId: string,
 	tenantId: string,
 ): Promise<{
 	tenant: PublicTenant;
 	user: PublicUser;
-}> {
+}> => {
 	const members = await listActiveTenants(accountId);
 	const matched = members.find((m) => m.tenant_id === tenantId);
 	if (!matched) {
@@ -219,4 +221,4 @@ export async function switchTenant(
 		tenant: toPublicTenant(matched),
 		user: toPublicUser(matched),
 	};
-}
+};
