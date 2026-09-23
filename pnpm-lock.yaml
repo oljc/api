@@ -199,7 +199,7 @@ importers:
         version: 22.20.3
       edgeone:
         specifier: ^1.6.40
-        version: 1.6.40
+        version: 1.6.40(debug@4.4.3)
       lefthook:
         specifier: ^2.1.14
         version: 2.1.14
@@ -1724,10 +1724,10 @@ snapshots:
 
   '@edgeone/opennextjs-pages@0.2.10-beta.8': {}
 
-  '@edgeone/pages-agent-toolkit@0.1.38':
+  '@edgeone/pages-agent-toolkit@0.1.38(debug@4.4.3)':
     dependencies:
       '@e2b/code-interpreter': 2.8.0
-      axios: 1.20.0
+      axios: 1.20.0(debug@4.4.3)
       zod: 4.6.5
     transitivePeerDependencies:
       - debug
@@ -1980,9 +1980,9 @@ snapshots:
 
   asynckit@0.4.0: {}
 
-  axios@1.20.0:
+  axios@1.20.0(debug@4.4.3):
     dependencies:
-      follow-redirects: 1.16.0
+      follow-redirects: 1.16.0(debug@4.4.3)
       form-data: 4.0.6
       https-proxy-agent: 5.0.1
       proxy-from-env: 2.1.0
@@ -2138,7 +2138,7 @@ snapshots:
     optionalDependencies:
       undici8: undici@8.10.2
 
-  edgeone@1.6.40:
+  edgeone@1.6.40(debug@4.4.3):
     dependencies:
       '@babel/generator': 7.29.8
       '@babel/parser': 7.29.8
@@ -2146,7 +2146,7 @@ snapshots:
       '@babel/types': 7.29.8
       '@edgeone/nuxt-pages': 1.1.2-beta.1
       '@edgeone/opennextjs-pages': 0.2.10-beta.8
-      '@edgeone/pages-agent-toolkit': 0.1.38
+      '@edgeone/pages-agent-toolkit': 0.1.38(debug@4.4.3)
       '@edgeone/pages-blob': 0.0.16
       chokidar: 4.0.3
       esbuild: 0.19.12
@@ -2270,7 +2270,9 @@ snapshots:
     dependencies:
       to-regex-range: 5.0.1
 
-  follow-redirects@1.16.0: {}
+  follow-redirects@1.16.0(debug@4.4.3):
+    optionalDependencies:
+      debug: 4.4.3
 
   form-data@4.0.6:
     dependencies:

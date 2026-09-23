@@ -26,11 +26,17 @@ tenantsRoutes.get("/", async (c) => {
 tenantsRoutes.post("/", json(createTenantSchema), async (c) => {
 	const accountId = c.get("accountId");
 	const sessionId = c.get("sessionId");
-	if (!accountId || !sessionId) {
+	const account = c.get("authAccount");
+	if (!accountId || !sessionId || !account) {
 		throw new AppError(401, "未登录或会话已过期");
 	}
 	const input = c.req.valid("json");
-	const result = await tenantsService.createTenant(accountId, sessionId, input);
+	const result = await tenantsService.createTenant(
+		accountId,
+		sessionId,
+		account.name,
+		input,
+	);
 	return ok(c, result, "工作区创建成功", 201);
 });
 

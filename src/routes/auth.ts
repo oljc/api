@@ -75,14 +75,14 @@ authRoutes.post("/logout", async (c) => {
 });
 
 authRoutes.get("/me", requireAuth, async (c) => {
-	const accountId = c.get("accountId");
-	if (!accountId) {
+	const account = c.get("authAccount");
+	if (!account) {
 		throw new AppError(401, "未登录或会话已过期");
 	}
 	const result = await accountService.getMe({
-		accountId,
-		tenantId: c.get("tenantId") ?? null,
-		userId: c.get("userId") ?? null,
+		account,
+		tenant: c.get("authTenant") ?? null,
+		user: c.get("authUser") ?? null,
 	});
 	return ok(c, result);
 });

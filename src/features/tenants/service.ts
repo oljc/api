@@ -1,4 +1,4 @@
-import { sql } from "@/db/client";
+import { isUnique, query, sql, transaction } from "@/db/client";
 import {
 	listActiveTenants,
 	type PublicTenant,
@@ -6,6 +6,7 @@ import {
 	toPublicTenant,
 	toPublicUser,
 } from "@/features/auth";
+import type { TenantMemberRow } from "@/features/auth/types";
 import { AppError } from "@/lib/errors";
 import type { CreateTenantInput } from "./schema";
 
@@ -21,29 +22,59 @@ type RolePermTemplate = {
 	permission_id: string;
 };
 
+const loadRoleTemplates = async (): Promise<{
+	templates: RoleTemplate[];
+	perms: RolePermTemplate[];
+}> => {
+	const rows = (await sql`
+		SELECT
+			r.id,
+			r.code,
+			r.name,
+			r.description,
+			rp.permission_id
+		FROM role r
+		LEFT JOIN role_perm rp ON rp.role_id = r.id
+		WHERE r.tenant_id IS NULL
+			AND r.delete_time IS NULL
+			AND r.code IN ('owner', 'admin', 'member')
+		ORDER BY r.code, rp.permission_id
+	`) as Array<RoleTemplate & { permission_id: string | null }>;
+
+	const byId = new Map<string, RoleTemplate>();
+	const perms: RolePermTemplate[] = [];
+	for (const row of rows) {
+		if (!byId.has(row.id)) {
+			byId.set(row.id, {
+				id: row.id,
+				code: row.code,
+				name: row.name,
+				description: row.description,
+			});
+		}
+		if (row.permission_id) {
+			perms.push({ role_id: row.id, permission_id: row.permission_id });
+		}
+	}
+	return { templates: [...byId.values()], perms };
+};
+
 const slugifyTenantKey = (name: string): string => {
 	const base = name
 		.trim()
 		.toLowerCase()
 		.replace(/[^a-z0-9]+/g, "-")
 		.replace(/^-+|-+$/g, "")
-		.slice(0, 48);
+		.slice(0, 48)
+		.replace(/-+$/g, "");
 	if (base.length >= 2) return base;
 	return `org-${crypto.randomUUID().slice(0, 8)}`;
 };
 
-const ensureUniqueTenantKey = async (preferred: string): Promise<string> => {
-	let candidate = preferred;
-	for (let i = 0; i < 8; i++) {
-		const rows = await sql`
-			SELECT 1 FROM tenant
-			WHERE tenant_key = ${candidate} AND delete_time IS NULL
-			LIMIT 1
-		`;
-		if (rows.length === 0) return candidate;
-		candidate = `${preferred.slice(0, 40)}-${crypto.randomUUID().slice(0, 6)}`;
-	}
-	return `org-${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
+const isTenantKeyCheck = (error: unknown) => {
+	if (!error || typeof error !== "object") return false;
+	const value = error as { code?: unknown; constraint?: unknown };
+	return value.code === "23514" && value.constraint === "tenant_key_check";
 };
 
 export const listTenants = async (
@@ -63,43 +94,18 @@ export const listTenants = async (
 export const createTenant = async (
 	accountId: string,
 	sessionId: string,
+	accountName: string | null,
 	input: CreateTenantInput,
 ): Promise<{
 	tenant: PublicTenant;
 	user: PublicUser;
 }> => {
-	const tenantKey = await ensureUniqueTenantKey(
-		input.tenantKey ?? slugifyTenantKey(input.name),
-	);
-
-	const accountRows = await sql`
-		SELECT name FROM account
-		WHERE id = ${accountId} AND delete_time IS NULL
-		LIMIT 1
-	`;
-	const accountName =
-		(accountRows[0] as { name: string | null } | undefined)?.name ?? null;
-
-	const templates = (await sql`
-		SELECT id, code, name, description
-		FROM role
-		WHERE tenant_id IS NULL
-			AND delete_time IS NULL
-			AND code IN ('owner', 'admin', 'member')
-	`) as RoleTemplate[];
+	const tenantKey = input.tenantKey ?? slugifyTenantKey(input.name);
+	const { templates, perms } = await loadRoleTemplates();
 
 	if (templates.length < 3) {
 		throw new AppError(500, "系统角色模板未就绪，请先执行种子迁移");
 	}
-
-	const perms = (await sql`
-		SELECT rp.role_id, rp.permission_id
-		FROM role_perm rp
-		INNER JOIN role r ON r.id = rp.role_id
-		WHERE r.tenant_id IS NULL
-			AND r.delete_time IS NULL
-			AND r.code IN ('owner', 'admin', 'member')
-	`) as RolePermTemplate[];
 
 	const tenantId = crypto.randomUUID();
 	const userId = crypto.randomUUID();
@@ -142,7 +148,7 @@ export const createTenant = async (
 	});
 
 	try {
-		await sql.transaction([
+		await transaction(accountId, tenantId, [
 			sql`
 				INSERT INTO tenant (id, tenant_key, name, status, owner_account_id)
 				VALUES (${tenantId}, ${tenantKey}, ${input.name}, 1, ${accountId})
@@ -152,16 +158,14 @@ export const createTenant = async (
 			sql`
 				INSERT INTO "user" (
 					id, tenant_id, account_id, name, status, join_time
-				)
-				SELECT
+				) VALUES (
 					${userId},
 					${tenantId},
 					${accountId},
-					a.name,
+					${accountName},
 					1,
 					now()
-				FROM account a
-				WHERE a.id = ${accountId}
+				)
 			`,
 			sql`
 				INSERT INTO user_role (user_id, role_id, tenant_id)
@@ -169,14 +173,16 @@ export const createTenant = async (
 			`,
 			sql`
 				UPDATE session
-				SET tenant_id = ${tenantId}, update_time = now()
+				SET tenant_id = ${tenantId}
 				WHERE id = ${sessionId} AND revoke_time IS NULL
 			`,
 		]);
 	} catch (err) {
-		const message = err instanceof Error ? err.message : String(err);
-		if (message.includes("tenant_key_uk") || message.includes("23505")) {
+		if (isUnique(err, "tenant_key_uk")) {
 			throw new AppError(409, "工作区标识已被占用");
+		}
+		if (isTenantKeyCheck(err)) {
+			throw new AppError(400, "工作区标识格式不正确");
 		}
 		throw err;
 	}
@@ -205,17 +211,38 @@ export const switchTenant = async (
 	tenant: PublicTenant;
 	user: PublicUser;
 }> => {
-	const members = await listActiveTenants(accountId);
-	const matched = members.find((m) => m.tenant_id === tenantId);
+	const rows = await query<TenantMemberRow>(
+		accountId,
+		tenantId,
+		sql`
+		UPDATE session s
+		SET tenant_id = ${tenantId}
+		FROM "user" u
+		INNER JOIN tenant t ON t.id = u.tenant_id
+		WHERE s.id = ${sessionId}
+			AND s.account_id = ${accountId}
+			AND s.revoke_time IS NULL
+			AND u.account_id = ${accountId}
+			AND u.tenant_id = ${tenantId}
+			AND u.status = 1
+			AND u.delete_time IS NULL
+			AND t.status = 1
+			AND t.delete_time IS NULL
+		RETURNING
+			t.id AS tenant_id,
+			t.tenant_key,
+			t.name AS tenant_name,
+			t.avatar AS tenant_avatar,
+			u.id AS user_id,
+			u.name AS user_name,
+			u.avatar AS user_avatar,
+			u.status AS user_status
+		`,
+	);
+	const matched = rows[0];
 	if (!matched) {
 		throw new AppError(403, "你不是该工作区的成员");
 	}
-
-	await sql`
-		UPDATE session
-		SET tenant_id = ${tenantId}, update_time = now()
-		WHERE id = ${sessionId} AND revoke_time IS NULL
-	`;
 
 	return {
 		tenant: toPublicTenant(matched),

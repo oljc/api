@@ -1,3 +1,9 @@
+import type {
+	PublicAccount,
+	PublicTenant,
+	PublicUser,
+} from "@/features/auth/types";
+
 export type ApiResponse<T> = {
 	code: number;
 	message: string;
@@ -19,6 +25,9 @@ export type Variables = {
 	sessionId?: string;
 	tenantId?: string | null;
 	userId?: string | null;
+	authAccount?: PublicAccount;
+	authTenant?: PublicTenant | null;
+	authUser?: PublicUser | null;
 };
 
 export type AppEnv = {

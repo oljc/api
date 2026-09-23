@@ -1,4 +1,4 @@
-import { sql } from "@/db/client";
+import { isUnique, query, sql } from "@/db/client";
 import { AppError } from "@/lib/errors";
 import { consumeCaptcha } from "../internal/captcha";
 import { parseAccount } from "../internal/identity";
@@ -9,14 +9,12 @@ import type {
 	RegisterInput,
 } from "../schema";
 import type {
-	AccountRow,
 	AuthTokens,
 	PublicAccount,
 	PublicTenant,
 	PublicUser,
-	TenantMemberRow,
 } from "../types";
-import { toPublicAccount, toPublicTenant, toPublicUser } from "../types";
+import { toPublicTenant, toPublicUser } from "../types";
 import { createSession, listActiveTenants } from "./session";
 
 type CredentialRow = {
@@ -67,8 +65,7 @@ export const register = async (
 			`,
 		]);
 	} catch (err) {
-		const message = err instanceof Error ? err.message : String(err);
-		if (message.includes("identity_type_key_uk") || message.includes("23505")) {
+		if (isUnique(err, "identity_type_key_uk")) {
 			throw new AppError(409, "该身份已注册");
 		}
 		throw err;
@@ -135,35 +132,36 @@ export const login = async (
 
 	const ok = await verifyPassword(input.password, cred.password_hash);
 	if (!ok) {
-		const nextFail = cred.fail_count + 1;
-		if (nextFail >= 5) {
-			const lockUntil = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-			await sql`
-				UPDATE credential
-				SET fail_count = ${nextFail},
-					lock_until = ${lockUntil}
-				WHERE account_id = ${cred.account_id}
-			`;
+		const failedRows = await sql`
+			UPDATE credential
+			SET fail_count = fail_count + 1,
+				lock_until = CASE
+					WHEN fail_count + 1 >= 5
+					THEN now() + interval '15 minutes'
+					ELSE lock_until
+				END
+			WHERE account_id = ${cred.account_id}
+			RETURNING fail_count
+		`;
+		const failure = failedRows[0] as { fail_count: number } | undefined;
+		if ((failure?.fail_count ?? cred.fail_count + 1) >= 5) {
 			throw new AppError(403, "密码错误次数过多，账号已临时锁定");
 		}
-		await sql`
-			UPDATE credential
-			SET fail_count = ${nextFail}
-			WHERE account_id = ${cred.account_id}
-		`;
 		throw new AppError(401, "账号或密码错误");
 	}
 
-	await sql`
-		UPDATE credential
-		SET fail_count = 0, lock_until = NULL
-		WHERE account_id = ${cred.account_id}
-	`;
-	await sql`
-		UPDATE account
-		SET last_login_time = now(), update_time = now()
-		WHERE id = ${cred.account_id}
-	`;
+	await sql.transaction([
+		sql`
+			UPDATE credential
+			SET fail_count = 0, lock_until = NULL
+			WHERE account_id = ${cred.account_id}
+		`,
+		sql`
+			UPDATE account
+			SET last_login_time = now()
+			WHERE id = ${cred.account_id}
+		`,
+	]);
 
 	const tenants = await listActiveTenants(cred.account_id);
 	const auto = tenants.length === 1 ? (tenants[0] ?? null) : null;
@@ -192,76 +190,40 @@ export const login = async (
 };
 
 export const getMe = async (params: {
-	accountId: string;
-	tenantId: string | null;
-	userId: string | null;
+	account: PublicAccount;
+	tenant: PublicTenant | null;
+	user: PublicUser | null;
 }): Promise<{
 	account: PublicAccount;
 	tenant: PublicTenant | null;
 	user: PublicUser | null;
 	permissions: string[];
 }> => {
-	const accountRows = await sql`
-		SELECT id, status, name, avatar, locale, timezone
-		FROM account
-		WHERE id = ${params.accountId} AND delete_time IS NULL
-		LIMIT 1
-	`;
-	const account = accountRows[0] as AccountRow | undefined;
-	if (account?.status !== 1) {
-		throw new AppError(401, "未登录或会话已过期");
-	}
-
-	let tenant: PublicTenant | null = null;
-	let user: PublicUser | null = null;
 	let permissions: string[] = [];
 
-	if (params.tenantId && params.userId) {
-		const memberRows = await sql`
-			SELECT
-				t.id AS tenant_id,
-				t.tenant_key,
-				t.name AS tenant_name,
-				t.avatar AS tenant_avatar,
-				u.id AS user_id,
-				u.name AS user_name,
-				u.avatar AS user_avatar,
-				u.status AS user_status
-			FROM "user" u
-			INNER JOIN tenant t ON t.id = u.tenant_id
-			WHERE u.id = ${params.userId}
-				AND u.account_id = ${params.accountId}
-				AND u.tenant_id = ${params.tenantId}
-				AND u.status = 1
-				AND u.delete_time IS NULL
-				AND t.status = 1
-				AND t.delete_time IS NULL
-			LIMIT 1
-		`;
-		const member = memberRows[0] as TenantMemberRow | undefined;
-		if (member) {
-			tenant = toPublicTenant(member);
-			user = toPublicUser(member);
-
-			const permRows = await sql`
-				SELECT DISTINCT p.code
-				FROM user_role ur
-				INNER JOIN role_perm rp ON rp.role_id = ur.role_id
-				INNER JOIN permission p ON p.id = rp.permission_id
-				INNER JOIN role r ON r.id = ur.role_id
-				WHERE ur.user_id = ${params.userId}
-					AND ur.tenant_id = ${params.tenantId}
-					AND r.delete_time IS NULL
-				ORDER BY p.code
-			`;
-			permissions = (permRows as { code: string }[]).map((r) => r.code);
-		}
+	if (params.tenant && params.user) {
+		const permRows = await query<{ code: string }>(
+			params.account.id,
+			params.tenant.id,
+			sql`
+			SELECT DISTINCT p.code
+			FROM user_role ur
+			INNER JOIN role_perm rp ON rp.role_id = ur.role_id
+			INNER JOIN permission p ON p.id = rp.permission_id
+			INNER JOIN role r ON r.id = ur.role_id
+			WHERE ur.user_id = ${params.user.id}
+				AND ur.tenant_id = ${params.tenant.id}
+				AND r.delete_time IS NULL
+			ORDER BY p.code
+			`,
+		);
+		permissions = permRows.map((r) => r.code);
 	}
 
 	return {
-		account: toPublicAccount(account),
-		tenant,
-		user,
+		account: params.account,
+		tenant: params.tenant,
+		user: params.user,
 		permissions,
 	};
 };
@@ -287,22 +249,22 @@ export const changePassword = async (
 	}
 
 	const passwordHash = await hashPassword(input.newPassword);
-	await sql`
-		UPDATE credential
-		SET password_hash = ${passwordHash},
-			password_algo = 'argon2id',
-			password_update_time = now(),
-			fail_count = 0,
-			lock_until = NULL
-		WHERE account_id = ${accountId}
-	`;
-
-	// 改密后撤销其他会话，保留当前由调用方决定；这里撤销全部，强制重新登录更安全
-	await sql`
-		UPDATE session
-		SET revoke_time = now(), update_time = now()
-		WHERE account_id = ${accountId} AND revoke_time IS NULL
-	`;
+	await sql.transaction([
+		sql`
+			UPDATE credential
+			SET password_hash = ${passwordHash},
+				password_algo = 'argon2id',
+				password_update_time = now(),
+				fail_count = 0,
+				lock_until = NULL
+			WHERE account_id = ${accountId}
+		`,
+		sql`
+			UPDATE session
+			SET revoke_time = now()
+			WHERE account_id = ${accountId} AND revoke_time IS NULL
+		`,
+	]);
 
 	return { ok: true };
 };

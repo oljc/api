@@ -113,7 +113,7 @@ const PNG_HEAD = Buffer.concat([
 ]);
 const PNG_IEND = chunk("IEND", new Uint8Array(0));
 
-/** 索引色 PNG；透明底 + level 9 → base64 更小 */
+/** 索引色 PNG；level 6 在体积接近的前提下降低同步压缩 CPU */
 const encodePng = (pix: Uint8Array) => {
 	const raw = Buffer.allocUnsafe(60 * 161);
 	for (let y = 0; y < 60; y++) {
@@ -123,7 +123,7 @@ const encodePng = (pix: Uint8Array) => {
 	}
 	return Buffer.concat([
 		PNG_HEAD,
-		chunk("IDAT", deflateSync(raw, { level: 9 })),
+		chunk("IDAT", deflateSync(raw, { level: 6 })),
 		PNG_IEND,
 	]);
 };
@@ -294,13 +294,4 @@ export const consumeCaptcha = async (
 	if (!answerHash || !safeEqualHex(codeHash, answerHash)) {
 		throw new AppError(400, "验证码错误或已过期");
 	}
-
-	void sql`
-		DELETE FROM captcha
-		WHERE id IN (
-			SELECT id FROM captcha
-			WHERE expire_time < now()
-			LIMIT 50
-		)
-	`.catch(() => {});
 };

@@ -1,6 +1,6 @@
--- 权限目录 + 系统角色模板（tenant_id IS NULL）
--- 创建租户时复制模板 role 到该 tenant_id（得到实例角色后再挂 user_role / invite）
--- 禁止把模板 role.id 直接写入 user_role / invite（由复合 FK 保证）
+BEGIN;
+
+SET LOCAL ROLE seed;
 
 INSERT INTO permission (code, name, description, module)
 VALUES
@@ -17,19 +17,17 @@ SET
 	module = EXCLUDED.module;
 
 INSERT INTO role (code, name, description, is_system)
-SELECT v.code, v.name, v.description, true
-FROM (
-	VALUES
-		('owner', '所有者', '拥有租户全部权限'),
-		('admin', '管理员', '管理成员、部门与角色'),
-		('member', '成员', '基础通讯录只读')
-) AS v(code, name, description)
-WHERE NOT EXISTS (
-	SELECT 1 FROM role r
-	WHERE r.tenant_id IS NULL AND r.code = v.code AND r.delete_time IS NULL
-);
+VALUES
+	('owner', '所有者', '拥有租户全部权限', true),
+	('admin', '管理员', '管理成员、部门与角色', true),
+	('member', '成员', '基础通讯录只读', true)
+ON CONFLICT (code)
+	WHERE tenant_id IS NULL AND delete_time IS NULL
+DO UPDATE SET
+	name = EXCLUDED.name,
+	description = EXCLUDED.description,
+	is_system = true;
 
--- owner: 全部权限
 INSERT INTO role_perm (role_id, permission_id)
 SELECT r.id, p.id
 FROM role r
@@ -37,7 +35,6 @@ CROSS JOIN permission p
 WHERE r.tenant_id IS NULL AND r.code = 'owner' AND r.delete_time IS NULL
 ON CONFLICT DO NOTHING;
 
--- admin: 管理能力
 INSERT INTO role_perm (role_id, permission_id)
 SELECT r.id, p.id
 FROM role r
@@ -55,7 +52,6 @@ WHERE r.tenant_id IS NULL
 	)
 ON CONFLICT DO NOTHING;
 
--- member: 只读
 INSERT INTO role_perm (role_id, permission_id)
 SELECT r.id, p.id
 FROM role r
@@ -65,3 +61,29 @@ WHERE r.tenant_id IS NULL
 	AND r.delete_time IS NULL
 	AND p.code IN ('tenant.read', 'contact.user.read')
 ON CONFLICT DO NOTHING;
+
+DELETE FROM role_perm rp
+USING role r, permission p
+WHERE rp.role_id = r.id
+	AND rp.permission_id = p.id
+	AND r.tenant_id IS NULL
+	AND r.delete_time IS NULL
+	AND (
+		(
+			r.code = 'admin'
+			AND p.code NOT IN (
+				'tenant.read',
+				'tenant.setting.write',
+				'contact.user.read',
+				'contact.user.write',
+				'contact.dept.write',
+				'admin.role.write'
+			)
+		)
+		OR (
+			r.code = 'member'
+			AND p.code NOT IN ('tenant.read', 'contact.user.read')
+		)
+	);
+
+COMMIT;
